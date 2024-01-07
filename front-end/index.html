@@ -1,0 +1,32 @@
+<script src="https://unpkg.com/htmx.org@1.9.10"></script>
+
+
+<button hx-get="/start" hx-target="#responseOutput">Start Generation Process</button>
+
+
+<div id="responseOutput">
+    <!-- GPT responses and user forms will be displayed here -->
+</div>
+
+
+<form hx-post="/generateScript" hx-target="#responseOutput">
+    <input type="text" name="requestMethod" placeholder="Request Method" required>
+    <input type="number" name="numberOfUsers" placeholder="Number of Users" required>
+    <input type="text" name="testDuration" placeholder="Test Duration" required>
+    <button type="submit">Generate Script</button>
+</form>
+
+<pre><code id="scriptCode">
+import http from 'k6/http';
+import { sleep } from 'k6';
+
+export let options = {
+    vus: 10, // number of virtual users
+    duration: '30s', // test duration
+};
+
+export default function () {
+    http.get('http://localhost:8080/test');
+    sleep(1);
+};
+</code></pre>
