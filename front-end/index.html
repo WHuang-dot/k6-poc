@@ -1,22 +1,58 @@
 <script src="https://unpkg.com/htmx.org@1.9.10"></script>
 
-
-<button hx-get="/start" hx-target="#responseOutput">Start Generation Process</button>
-
-
-<div id="responseOutput">
-    <!-- GPT responses and user forms will be displayed here -->
-</div>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="../dist/output.css" rel="stylesheet">
+</head>
 
 
-<form hx-post="/generateScript" hx-target="#responseOutput">
-    <input type="text" name="requestMethod" placeholder="Request Method" required>
-    <input type="number" name="numberOfUsers" placeholder="Number of Users" required>
-    <input type="text" name="testDuration" placeholder="Test Duration" required>
-    <button type="submit">Generate Script</button>
+<button class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800"  hx-get="http://localhost:8080/test" hx-target="#responseOutput">Start Generation Process</button>
+
+<article id="responseOutput" class="prose lg:prose-xl">
+</article>
+
+
+<form id="myForm">
+    <input type="text" name="Endpoint" placeholder="Endpoint">
+    <input type="text" name="Method" placeholder="Method">
+    <input type="text" name="Vus" placeholder="Vus">
+    <input type="text" name="DurationInSecond" placeholder="DurationInSecond">
+    <button type="submit">Submit</button>
 </form>
 
-<pre><code id="scriptCode">
+<script>
+    document.getElementById('myForm').addEventListener('submit', function(e) {
+        e.preventDefault(); // Prevent the default form submission
+
+        var formData = new FormData(this);
+        var jsonObject = {};
+
+        for (const [key, value] of formData.entries()) {
+            jsonObject[key] = value;
+        }
+
+        fetch('http://localhost:8080/generate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(jsonObject)
+        })
+        .then(response => response.text()) // Handle as text
+        .then(html => {
+            // Set the HTML content
+            document.getElementById('responseOutput').innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('responseOutput').innerHTML = "Error: " + error;
+        });
+    });
+</script>
+
+
+<!-- <pre><code id="scriptCode">
 import http from 'k6/http';
 import { sleep } from 'k6';
 
@@ -29,4 +65,4 @@ export default function () {
     http.get('http://localhost:8080/test');
     sleep(1);
 };
-</code></pre>
+</code></pre> -->

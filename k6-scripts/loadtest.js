@@ -2,11 +2,12 @@ import http from 'k6/http';
 import { sleep } from 'k6';
 
 export let options = {
-    vus: 10, // number of virtual users
-    duration: '30s', // test duration
+  stages: [
+    { duration: '10s', target: 10 }
+  ]
 };
 
-export default function () {
-    http.get('http://localhost:8080/test');
-    sleep(1);
-};
+export default function() {
+  http.get('http://localhost:8080/test');
+  sleep(1);
+}
