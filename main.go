@@ -5,11 +5,35 @@ import (
     "log"
     "net/http"
     "encoding/json"
+    "github.com/joho/godotenv"
+    "os"
+    "strings"
+    "io"
 )
 
 type ScriptRequest struct {
     Endpoint string `json:"endpoint"`
     Method   string `json:"method"`
+    Vus int `json:"vus"`
+    DurationInSecond int `json:"durationInSecond"`
+}
+
+type ChatCompletionResponse struct {
+    ID      string `json:"id"`
+    Object  string `json:"object"`
+    Created int    `json:"created"`
+    Model   string `json:"model"`
+    Choices []Choice `json:"choices"`
+}
+
+type Choice struct {
+    Index   int    `json:"index"`
+    Message Message `json:"message"`
+}
+
+type Message struct {
+    Role    string `json:"role"`
+    Content string `json:"content"`
 }
 
 
@@ -22,6 +46,16 @@ func main() {
     http.HandleFunc("/generate", generateScriptHandler)
 
     fmt.Println("Server starting on port 8080...")
+
+    test := ScriptRequest{
+        Endpoint : "test",
+        Method : "GET",
+        Vus : 5,
+        DurationInSecond : 5,
+    }
+
+    GenerateScript(test)
+    
     log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
@@ -37,4 +71,77 @@ func generateScriptHandler(w http.ResponseWriter, r *http.Request) {
     script := fmt.Sprintf("Generated k6 script for testing %s method on %s", req.Method, req.Endpoint)
 
     fmt.Fprintln(w, script)
+}
+
+
+func GenerateScript(rq ScriptRequest) {
+	err := godotenv.Load()
+	if err != nil {
+        log.Println(err)
+		log.Fatal("Error loading .env file")
+	}
+
+	secretKey := os.Getenv("APIKEY")
+
+	fmt.Println("SECRET KEY IS " + secretKey)
+
+	url := "https://api.openai.com/v1/chat/completions"
+	method := "POST"
+
+	payload := strings.NewReader(`{
+	"model": "gpt-3.5-turbo",
+	"messages": [
+		{
+		"role": "system",
+		"content": "Greet the user first. You are a assistant that generates k6 load testing script file."
+		},
+		{
+		"role": "assistant",
+		"content": "Hello! I am a assistant that can help you generate k6 load testing script file. How can I assist you today?"
+		},
+		{
+		"role": "user",
+		"content": "Create a k6 script for load testing an endpoint. This should be a get request. Simulate 10 users over a period of 20 seconds."
+		}
+	],
+	"temperature": 1,
+	"max_tokens": 256,
+	"top_p": 1,
+	"frequency_penalty": 0,
+	"presence_penalty": 0
+	}`)
+
+	client := &http.Client{}
+	req, err := http.NewRequest(method, url, payload)
+
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Authorization", "Bearer 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")
+	req.Header.Add("Cookie", "__cf_bm=JUD4mqGL8D5L8euOSvs2IfwtVK0FriIpBu4zwyW8Drw-1704602516-1-AQyGW9C96nQlU3uPDTkX1YW+0N+D6447rO+Lrx9gG06ot167LYqr6YMJq05PXa004wvSpbZWpgortn/Pc+A2VSY=; _cfuvid=nKMl6J8V0OsI5w7ls5J4536jjIZXeKQW6hEcCUHiWsc-1704600670478-0-604800000")
+
+	res, err := client.Do(req)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer res.Body.Close()
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println(string(body))
+
+    var response ChatCompletionResponse
+    err := json.Unmarshal([]byte(jsonResponse), &response)
+    if err != nil {
+        log.Fatalf("Error occurred during unmarshalling: %s", err)
+    }
+
+    fmt.Println("Content:", response.Choices[0].Message.Content)
+
 }
