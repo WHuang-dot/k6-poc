@@ -1,68 +1,75 @@
-<script src="https://unpkg.com/htmx.org@1.9.10"></script>
-
+<!DOCTYPE html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="../dist/output.css" rel="stylesheet">
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
 </head>
+<body class="bg-gray-300">
 
+    <div id="startButtonDiv" class="flex justify-center items-center h-screen">
+        <button id="startButton" class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800">Start Generation Process</button>
+    </div>
+    
+    
+    <div class="flex justify-center items-center">
+        <article id="responseOutput" class="prose">
+            <!-- Response output will be displayed here -->
+        </article>
+    </div>
 
-<button class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800"  hx-get="http://localhost:8080/test" hx-target="#responseOutput">Start Generation Process</button>
+    <form id="myForm" class="max-w-sm mx-auto hidden justify-center items-center h-screen">
+        <h1 class="flex justify-center">Hi, Fill the form below to start generating your script</h1>
+        <input type="text" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" name="Endpoint" placeholder="Endpoint">
+        <input type="text" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" name="Method" placeholder="Method">
+        <input type="text" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" name="Vus" placeholder="Vus">
+        <input type="text"  class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" name="DurationInSecond" placeholder="DurationInSecond">
+        <div class="flex justify-center">
+            <button class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800" type="submit">Submit</button>
+        </div>
+    </form>
 
-<article id="responseOutput" class="prose lg:prose-xl">
-</article>
+    <script>
 
-
-<form id="myForm">
-    <input type="text" name="Endpoint" placeholder="Endpoint">
-    <input type="text" name="Method" placeholder="Method">
-    <input type="text" name="Vus" placeholder="Vus">
-    <input type="text" name="DurationInSecond" placeholder="DurationInSecond">
-    <button type="submit">Submit</button>
-</form>
-
-<script>
-    document.getElementById('myForm').addEventListener('submit', function(e) {
-        e.preventDefault(); // Prevent the default form submission
-
-        var formData = new FormData(this);
-        var jsonObject = {};
-
-        for (const [key, value] of formData.entries()) {
-            jsonObject[key] = value;
-        }
-
-        fetch('http://localhost:8080/generate', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(jsonObject)
-        })
-        .then(response => response.text()) // Handle as text
-        .then(html => {
-            // Set the HTML content
-            document.getElementById('responseOutput').innerHTML = html;
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            document.getElementById('responseOutput').innerHTML = "Error: " + error;
+        document.getElementById('startButton').addEventListener('click', function() {
+                var form = document.getElementById('myForm');
+                form.classList.toggle('hidden');
+                document.getElementById('startButton').style.display = 'none';
+                document.getElementById('startButtonDiv').style.display = 'none';
         });
-    });
-</script>
 
+        document.getElementById('myForm').addEventListener('submit', function(e) {
+            e.preventDefault(); // Prevent the default form submission
+    
+            var formData = new FormData(this);
+            var jsonObject = {};
+    
+            for (const [key, value] of formData.entries()) {
+                jsonObject[key] = value;
+            }
+    
+            fetch('http://localhost:8080/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(jsonObject)
+            })
+            .then(response => response.text()) // Handle as text
+            .then(html => {
+                // Set the HTML content
+                document.getElementById('responseOutput').innerHTML = html;
+    
+                // Hide the form
+                document.getElementById('myForm').style.display = 'none';
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('responseOutput').innerHTML = "Error: " + error;
+            });
+        });
+    </script>
 
-<!-- <pre><code id="scriptCode">
-import http from 'k6/http';
-import { sleep } from 'k6';
-
-export let options = {
-    vus: 10, // number of virtual users
-    duration: '30s', // test duration
-};
-
-export default function () {
-    http.get('http://localhost:8080/test');
-    sleep(1);
-};
-</code></pre> -->
+</body>
+</html>

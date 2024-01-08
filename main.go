@@ -145,7 +145,7 @@ func GenerateScript(rq ScriptRequest) ([]byte, error){
 			"messages": [
 				{
 				"role": "system",
-				"content": "Greet the user first. You are a assistant that generates k6 load testing script file."
+				"content": "Greet the user first. You are a assistant that generates k6 load testing script file. Do not provide instruction for the user on how to execute the test."
 				},
 				{
 				"role": "assistant",
