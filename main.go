@@ -1,18 +1,42 @@
 package main
 
 import (
-    "fmt"
-    "log"
-    "net/http"
-    "encoding/json"
-    "github.com/joho/godotenv"
-    "os"
-    "strings"
-    "io"
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"log"
+	"net/http"
+	"os"
+	"os/exec"
+	"path"
+	"strings"
+	"text/template"
+	"time"
+
 	"github.com/gomarkdown/markdown"
 	"github.com/gomarkdown/markdown/html"
 	"github.com/gomarkdown/markdown/parser"
+	"github.com/joho/godotenv"
 )
+
+func listFilesInDir(dirPath string) ([]string, error) {
+    var fileNames []string
+
+    files, err := ioutil.ReadDir(dirPath)
+    if err != nil {
+        return nil, err
+    }
+
+    for _, file := range files {
+        if !file.IsDir() { // or file.Mode().IsRegular() to include only regular files
+            fileNames = append(fileNames, file.Name())
+        }
+    }
+
+    return fileNames, nil
+}
 
 func mdToHTML(md []byte) []byte {
 	// create markdown parser with extensions
@@ -65,6 +89,26 @@ func main() {
     })
 
     http.HandleFunc("/generate", generateScriptHandler)
+	http.HandleFunc("/savescript", saveCodeToFileHandler)
+
+	http.HandleFunc("/run-k6/", runK6Handler) // Note the trailing slash
+
+	http.HandleFunc("/list-files", func(w http.ResponseWriter, r *http.Request) {
+        fileNames, err := listFilesInDir("k6-scripts")
+        if err != nil {
+            http.Error(w, "Unable to list files", http.StatusInternalServerError)
+            return
+        }
+
+        tmpl, err := template.ParseFiles("listFiles.html")
+        if err != nil {
+            http.Error(w, "Unable to load template", http.StatusInternalServerError)
+            return
+        }
+
+        tmpl.Execute(w, fileNames)
+    })
+
 
     fmt.Println("Server starting on port 8080...")
 
@@ -122,6 +166,94 @@ func generateScriptHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Write(script)
 }
+
+func runK6Handler(w http.ResponseWriter, r *http.Request) {
+    // Extract filename from URL path
+    filename := path.Base(r.URL.Path)
+    if filename == "" || filename == "run-k6" {
+        http.Error(w, "Filename is required", http.StatusBadRequest)
+        return
+    }
+
+    // Validate the filename
+    if !isValidFilename(filename) {
+        http.Error(w, "Invalid filename", http.StatusBadRequest)
+        return
+    }
+
+    // Execute k6 command
+	 // Create a buffer to capture output
+	var stdout, stderr bytes.Buffer
+    cmd := exec.Command("k6", "run", "./k6-scripts/"+filename)
+	cmd.Stdout = &stdout // Capture standard output
+    cmd.Stderr = &stderr // Capture standard error
+    // Execute k6 command
+    err := cmd.Run()
+    outStr, errStr := stdout.String(), stderr.String()
+
+    if err != nil {
+        log.Printf("Error running k6 command: %v, stderr: %v", err, errStr)
+        http.Error(w, "Error executing k6 command", http.StatusInternalServerError)
+        return
+    }
+
+    // Logging the output
+    log.Printf("k6 command output: %s", outStr)
+
+    w.WriteHeader(http.StatusOK)
+    w.Write([]byte("k6 command executed successfully\n" + outStr))
+}
+
+func isValidFilename(filename string) bool {
+    // Implement filename validation logic here
+    // For example, ensure filename has a .js extension, no invalid characters, etc.
+    return strings.HasSuffix(filename, ".js") // Simple example; enhance as needed
+}
+
+func saveCodeToFileHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("123123")
+
+	enableCors(&w)
+    if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+        return
+    }
+	fmt.Println(r.Body)
+    bodyBytes, err := ioutil.ReadAll(r.Body)
+    if err != nil {
+        log.Printf("Error reading body: %v", err)
+        http.Error(w, "can't read body", http.StatusBadRequest)
+        return
+    }
+    defer r.Body.Close()
+
+	err = saveCodeToFile(bodyBytes, "./k6-scripts/")
+
+	if err != nil{
+        http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+        return
+	}
+
+    // Do something with the body string
+    log.Printf("Body: %s", string(bodyBytes))
+
+	w.WriteHeader(http.StatusOK) // Explicitly setting status to 200 OK
+}
+
+// saveCodeToFile saves a given code block (byte slice) to a specified JavaScript file path with a unique timestamp
+func saveCodeToFile(codeBlock []byte, filePath string) error {
+    // Append a timestamp to the filename to ensure uniqueness
+    timestamp := time.Now().Format("20060102150405") // YYYYMMDDHHMMSS format
+    filePath = filePath + "_" + timestamp + ".js"
+
+    // Write data to file
+    err := ioutil.WriteFile(filePath, codeBlock, 0644) // 0644 for readable and writable file
+    if err != nil {
+        return err
+    }
+    return nil
+}
+
 
 
 func GenerateScript(rq ScriptRequest) ([]byte, error){
